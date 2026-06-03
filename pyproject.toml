@@ -1,0 +1,27 @@
+[project]
+name = "hunchproof"
+version = "0.1.0"
+description = "Auditable market-residual intelligence engine for football (belief market, not betting)."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "numpy",
+  "pandas",
+  "scipy",
+  "matplotlib",
+]
+
+# The research/ and product/ folders contain flat modules that import each other
+# (e.g. product/ingestion.py imports phase0 from research/). Installing the project
+# in editable mode puts both on the path so imports resolve from anywhere.
+# (The scripts and tests also self-resolve their paths, so this is optional but cleanest.)
+[tool.setuptools]
+py-modules = []
+
+[tool.setuptools.packages.find]
+where = ["research", "product"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

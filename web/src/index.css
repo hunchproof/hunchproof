@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   Design tokens — RGB channels (consumed by tailwind.config.ts via rgb(var()/a)).
+   Mirrors the original hunchproof_app.html palette exactly.
+   Quant terminal × premium consumer: dark, precise, single signal-green accent.
+   ============================================================================= */
+:root {
+  --bg: 10 12 14;
+  --panel: 17 21 26;
+  --panel-2: 22 27 34;
+  --panel-3: 27 33 42;
+  --line: 34 42 51;
+  --line-2: 44 55 68;
+  --ink: 238 242 246;
+  --ink-dim: 151 163 176;
+  --ink-faint: 94 105 117;
+  --signal: 61 220 151;
+  --signal-dim: 29 158 117;
+  --home: 61 139 255;
+  --draw: 154 166 178;
+  --away: 224 145 58;
+  --bad: 216 90 48;
+  --violet: 154 134 216;
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    margin: 0;
+    background-color: rgb(var(--bg));
+    color: rgb(var(--ink));
+    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    /* ambient backdrop: two far-apart, very dim brand glows (deep emerald + deep blue)
+       over the darkest layer — gives the glass surfaces something faint to refract.
+       Kept whisper-faint on purpose: this is a serious instrument, not a gradient toy. */
+    background-image:
+      radial-gradient(1200px 600px at 84% -10%, rgb(var(--signal) / 0.07), transparent 60%),
+      radial-gradient(900px 520px at -10% 108%, rgb(var(--home) / 0.06), transparent 55%);
+    background-attachment: fixed;
+  }
+  /* faint film-grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.022;
+    z-index: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  /* accessible focus ring everywhere */
+  :focus-visible {
+    outline: 2px solid rgb(var(--signal));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: rgb(var(--signal) / 0.28);
+    color: rgb(var(--ink));
+  }
+  /* tabular numerals for all data */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  /* thin terminal scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line-2)) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: rgb(var(--line-2));
+    border-radius: 6px;
+  }
+}
+
+@layer components {
+  /* ---- the label / overline token ----
+     A clean proportional sans, replacing the old uppercase letter-spaced MONOSPACE
+     treatment for eyebrows, pills/badges, table headers, section labels, status tags,
+     form labels, and gate IDs. After this: mono = a number/hash/datum, sans = a label.
+     Per-site size/color/weight stay as utilities (they win over this component layer). */
+  .hp-label {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ---- tactile probability sliders (can't be expressed in pure Tailwind) ---- */
+  .hp-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 6px;
+    background: #0c1014;
+    outline-offset: 4px;
+    border: 1px solid rgb(var(--line));
+    cursor: pointer;
+  }
+  .hp-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgb(var(--ink));
+    border: 3px solid rgb(var(--bg));
+    box-shadow: 0 0 0 1px rgb(var(--line));
+    cursor: grab;
+    transition: transform 0.08s ease, box-shadow 0.12s ease;
+  }
+  .hp-range::-webkit-slider-thumb:active {
+    transform: scale(1.18);
+    cursor: grabbing;
+  }
+  .hp-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px rgb(var(--signal) / 0.5);
+  }
+  .hp-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: 3px solid rgb(var(--bg));
+    border-radius: 50%;
+    background: rgb(var(--ink));
+    box-shadow: 0 0 0 1px rgb(var(--line));
+    cursor: grab;
+  }
+  .hp-range.h::-webkit-slider-thumb {
+    background: rgb(var(--home));
+  }
+  .hp-range.d::-webkit-slider-thumb {
+    background: rgb(var(--draw));
+  }
+  .hp-range.a::-webkit-slider-thumb {
+    background: rgb(var(--away));
+  }
+  .hp-range.h::-moz-range-thumb {
+    background: rgb(var(--home));
+  }
+  .hp-range.d::-moz-range-thumb {
+    background: rgb(var(--draw));
+  }
+  .hp-range.a::-moz-range-thumb {
+    background: rgb(var(--away));
+  }
+
+  /* scoring/hash data look */
+  .hp-hash {
+    font-family: 'IBM Plex Mono', monospace;
+    word-break: break-all;
+    letter-spacing: 0.01em;
+  }
+}
+
+@layer components {
+  /* ---- Liquid Glass — the floating-surface material (cards, tiles, nav, modal) ----
+     ONE glass layer only: card surfaces are translucent + blurred; their interiors
+     (tables, numbers, gate cards, charts) stay near-opaque and crisp. backdrop-filter
+     is GPU-expensive, so it is applied ONLY to these panel/nav surfaces — never to
+     rows, chips, sliders, or bars. */
+  .glass-panel {
+    position: relative;
+    isolation: isolate;
+    background: linear-gradient(180deg, rgb(var(--panel) / 0.62), rgb(var(--panel-2) / 0.46));
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgb(var(--line) / 0.55);
+    box-shadow:
+      0 22px 48px -28px rgb(0 0 0 / 0.8),
+      inset 0 1px 0 rgb(255 255 255 / 0.05);
+  }
+  /* specular rim: a 1px gradient border ring, brightest at the top-left edge.
+     Painted as a masked frame so it only touches the 1px edge, never interior data. */
+  .glass-panel::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      145deg,
+      rgb(255 255 255 / 0.2),
+      rgb(255 255 255 / 0.04) 28%,
+      rgb(255 255 255 / 0) 60%
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+  /* full-bleed sticky nav glass: no radius/rim; keeps its own bottom hairline */
+  .glass-nav {
+    background: rgb(var(--bg) / 0.62);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+  }
+}
+
+/* Apple "continuous corner" squircle on the outermost panels — progressive
+   enhancement only; the rounded-panel border-radius is the guaranteed fallback. */
+@supports (corner-shape: superellipse(3)) {
+  .glass-panel {
+    corner-shape: superellipse(3);
+  }
+}
+
+/* Accessibility: when the user reduces transparency or wants more contrast, drop the
+   blur + specular rim and fall back to solid, near-opaque token surfaces. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-panel {
+    background: rgb(var(--panel));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .glass-panel::before {
+    display: none;
+  }
+  .glass-nav {
+    background: rgb(var(--bg));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+@media (prefers-contrast: more) {
+  .glass-panel {
+    background: rgb(var(--panel));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: rgb(var(--line-2));
+  }
+  .glass-panel::before {
+    display: none;
+  }
+  .glass-nav {
+    background: rgb(var(--bg));
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* honour reduced-motion: kill the decorative animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

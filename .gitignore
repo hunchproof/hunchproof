@@ -1,0 +1,28 @@
+# databases (dev)
+*.db
+*.sqlite
+*.sqlite3
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# node
+node_modules/
+
+# env / secrets (never commit; keep only the template)
+.env
+.env.*
+!.env.example
+
+# local odds data (third-party; not committed) — keep the folder's README
+research/real_data/*
+!research/real_data/README.md
+
+# os
+.DS_Store

@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hunchproof — turn your hunch into proof</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --bg:#0a0c0e; --panel:#11151a; --panel-2:#161b22; --panel-3:#1b212a; --line:#222a33; --line-2:#2c3744;
+    --ink:#eef2f6; --ink-dim:#97a3b0; --ink-faint:#5e6975;
+    --signal:#3ddc97; --signal-dim:#1d9e75; --home:#3d8bff; --draw:#9aa6b2; --away:#e0913a;
+    --bad:#d85a30; --violet:#9a86d8;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --disp:'Fraunces',Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);-webkit-font-smoothing:antialiased;line-height:1.55}
+  body{background-image:radial-gradient(1200px 600px at 84% -10%,rgba(61,220,151,.06),transparent 60%),radial-gradient(900px 520px at -10% 108%,rgba(61,139,255,.05),transparent 55%);min-height:100vh}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.022;z-index:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+  /* ---- top bar ---- */
+  .top{position:sticky;top:0;z-index:20;background:rgba(10,12,14,.86);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:0 22px}
+  .top-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:22px;height:62px}
+  .logo{font-family:var(--disp);font-weight:900;font-size:21px;letter-spacing:-.02em;white-space:nowrap}
+  .logo .dot{color:var(--signal)}
+  nav{display:flex;gap:4px;flex:1}
+  nav button{background:none;border:none;color:var(--ink-faint);font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+    padding:8px 13px;border-radius:8px;cursor:pointer;transition:all .14s;position:relative}
+  nav button:hover{color:var(--ink-dim)}
+  nav button.active{color:var(--signal);background:rgba(61,220,151,.07)}
+  .conn{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-dim);white-space:nowrap}
+  .conn .led{width:7px;height:7px;border-radius:50%;background:var(--away);box-shadow:0 0 8px var(--away)}
+  .conn.live .led{background:var(--signal);box-shadow:0 0 8px var(--signal)}
+  .countdown{font-size:11px;color:var(--ink-dim);white-space:nowrap}
+  .countdown b{color:var(--signal)}
+
+  main{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:30px 22px 90px}
+  .view{display:none;animation:fade .4s ease}
+  .view.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  .vhead{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:6px}
+  .vhead h2{font-family:var(--disp);font-weight:600;font-size:27px;letter-spacing:-.02em;margin:0}
+  .vhead .desc{color:var(--ink-dim);font-size:12.5px;max-width:60ch;margin-top:4px}
+  .vhead .pill{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--signal-dim);border:1px solid var(--signal-dim);border-radius:20px;padding:4px 11px;white-space:nowrap}
+  hr.sep{border:none;border-top:1px solid var(--line);margin:18px 0 22px}
+
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:14px;padding:18px 19px;animation:rise .5s ease backwards}
+  .card+.card{margin-top:14px}
+
+  /* ---- slate / match cards ---- */
+  .matchcard{margin-bottom:14px}
+  .mc-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:3px}
+  .mc-comp{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--signal-dim)}
+  .mc-ko{font-size:11px;color:var(--ink-faint)}
+  .mc-teams{display:flex;align-items:center;gap:12px;font-family:var(--disp);font-size:19px;font-weight:600;margin:5px 0}
+  .mc-teams .vs{font-family:var(--mono);font-size:11px;color:var(--ink-faint);font-weight:400}
+  .mc-flag{width:22px;height:15px;border-radius:2px;display:inline-block;vertical-align:middle;border:1px solid var(--line)}
+  .sliders{display:flex;flex-direction:column;gap:11px;margin-top:14px}
+  .srow{display:grid;grid-template-columns:74px 1fr 54px;align-items:center;gap:12px}
+  .srow .lab{font-size:11px;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-dim)}
+  .srow .lab.h{color:var(--home)} .srow .lab.d{color:var(--draw)} .srow .lab.a{color:var(--away)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:6px;background:#0c1014;outline:none;border:1px solid var(--line)}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:17px;height:17px;border-radius:50%;background:var(--ink);border:3px solid var(--bg);box-shadow:0 0 0 1px var(--line);cursor:pointer;transition:transform .08s}
+  input[type=range]::-webkit-slider-thumb:active{transform:scale(1.15)}
+  input[type=range].h::-webkit-slider-thumb{background:var(--home)} input[type=range].d::-webkit-slider-thumb{background:var(--draw)} input[type=range].a::-webkit-slider-thumb{background:var(--away)}
+  input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:var(--ink);border:3px solid var(--bg);cursor:pointer}
+  .pv{text-align:right;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+  .distbar{display:flex;height:8px;border-radius:5px;overflow:hidden;margin-top:13px;border:1px solid var(--line)}
+  .distbar i{display:block;height:100%}
+  .distbar .sh{background:var(--home)} .distbar .sd{background:var(--draw)} .distbar .sa{background:var(--away)}
+  .mc-foot{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin-top:8px}
+  .mc-foot .dev{color:var(--ink-dim)} .mc-foot .dev.pos{color:var(--signal)}
+
+  .slate-bar{position:sticky;bottom:0;z-index:15;background:linear-gradient(0deg,var(--bg) 60%,transparent);padding:16px 0 6px;margin-top:10px}
+  .slate-bar-in{display:flex;align-items:center;gap:16px;background:var(--panel-2);border:1px solid var(--line-2);border-radius:13px;padding:14px 18px}
+  .cov{font-size:12px;color:var(--ink-dim)}
+  .cov b{color:var(--signal)}
+  .btn{display:inline-flex;align-items:center;gap:9px;background:var(--signal);color:#04130d;border:none;border-radius:10px;padding:12px 20px;font-family:var(--mono);font-weight:600;font-size:13px;letter-spacing:.02em;cursor:pointer;transition:filter .12s,transform .06s}
+  .btn:hover{filter:brightness(1.08)} .btn:active{transform:translateY(1px)}
+  .btn[disabled]{background:#2a323b;color:var(--ink-faint);cursor:not-allowed;filter:none}
+  .btn.ghost{background:transparent;color:var(--ink-dim);border:1px solid var(--line)} .btn.ghost:hover{color:var(--ink);border-color:var(--ink-faint)}
+  .btn.sm{padding:7px 13px;font-size:11.5px;border-radius:8px}
+
+  /* ---- stat tiles ---- */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .tile{background:#06090b;border:1px solid var(--line);border-radius:11px;padding:14px}
+  .tile .v{font-family:var(--disp);font-size:24px;font-weight:600;line-height:1}
+  .tile .v.sig{color:var(--signal)} .tile .v.blue{color:var(--home)} .tile .v.warn{color:var(--away)} .tile .v.bad{color:var(--bad)}
+  .tile .k{font-size:10px;color:var(--ink-faint);letter-spacing:.04em;margin-top:8px;line-height:1.4}
+
+  /* ---- tables ---- */
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;font-weight:500;color:var(--ink-faint);font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:9px 10px;border-bottom:1px solid var(--line-2)}
+  td{padding:10px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  tr.me{background:rgba(61,220,151,.05)}
+  .rank{color:var(--ink-faint);width:28px}
+  .uname{font-weight:500}
+  .uname .you{font-size:9px;letter-spacing:.1em;color:#04130d;background:var(--signal);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+  .pos{color:var(--signal)} .neg{color:var(--bad)}
+  .flag-bad{font-size:9px;color:var(--away);border:1px solid #5a4626;border-radius:4px;padding:1px 6px;margin-left:6px}
+  .wbar{height:6px;background:#06090b;border-radius:4px;overflow:hidden;display:inline-block;width:60px;vertical-align:middle;margin-right:7px;border:1px solid var(--line)}
+  .wbar i{display:block;height:100%;background:var(--signal)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .card h3{font-family:var(--disp);font-size:16px;font-weight:600;margin:0 0 4px}
+  .card .sub{font-size:11.5px;color:var(--ink-faint);margin:0 0 12px}
+
+  .gates{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .gate{display:flex;gap:11px;align-items:flex-start;background:#06090b;border:1px solid var(--line);border-left:3px solid var(--signal);border-radius:9px;padding:11px 13px}
+  .gate.fail{border-left-color:var(--bad)}
+  .gate.pend{border-left-color:var(--ink-faint)}
+  .gate .gid{font-weight:600;color:var(--signal);font-size:11.5px;min-width:20px} .gate.fail .gid{color:var(--bad)} .gate.pend .gid{color:var(--ink-faint)}
+  .gate .gt{font-size:11px;color:var(--ink)} .gate .gt small{display:block;color:var(--ink-faint);font-size:10px;margin-top:2px;line-height:1.45}
+  .badge{display:inline-block;font-size:9px;letter-spacing:.1em;border-radius:4px;padding:1px 6px;font-weight:600;margin-left:5px}
+  .badge.pass{color:#04130d;background:var(--signal)} .badge.fail{color:#fff;background:var(--bad)} .badge.pend{color:var(--bg);background:var(--ink-faint)}
+
+  .receipt-row{font-size:11px;color:var(--ink-dim);display:grid;grid-template-columns:118px 1fr;gap:6px 12px;margin-top:3px}
+  .receipt-row .k{color:var(--ink-faint)} .receipt-row .v{color:var(--ink);word-break:break-all}
+  .hash{font-size:11px;color:var(--ink-faint);word-break:break-all}
+  .status{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;border-radius:5px;padding:2px 8px;white-space:nowrap}
+  .status.sealed{color:var(--home);background:rgba(61,139,255,.1)} .status.locked{color:var(--away);background:rgba(224,145,58,.1)}
+  .status.revealed{color:var(--signal);background:rgba(61,220,151,.1)} .status.scored{color:var(--violet);background:rgba(154,134,216,.12)}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);background:var(--panel-2);border:1px solid var(--signal-dim);color:var(--ink);padding:12px 18px;border-radius:10px;font-size:12.5px;opacity:0;transition:all .3s;z-index:40}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+  .demo-ribbon{font-size:10px;letter-spacing:.1em;color:var(--away);border:1px solid #5a4626;background:rgba(224,145,58,.06);border-radius:6px;padding:4px 10px}
+  .muted{color:var(--ink-faint);font-size:11px;line-height:1.6}
+  .insight{background:linear-gradient(180deg,rgba(61,139,255,.07),rgba(61,139,255,.02));border:1px solid #243650;border-radius:11px;padding:13px 15px;margin-top:12px;font-size:12px;color:var(--ink-dim)}
+  .insight b{color:#cfe0ff}
+  svg .axis{stroke:var(--line-2);stroke-width:1} svg .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:2 3}
+  @media(max-width:820px){.tiles,.grid2,.gates{grid-template-columns:1fr 1fr}nav{overflow-x:auto}main{padding:22px 14px 80px}}
+  @media(max-width:560px){.tiles,.grid2,.gates{grid-template-columns:1fr}.vhead{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+  <div class="top"><div class="top-in">
+    <div class="logo">Hunchproof<span class="dot">.</span></div>
+    <nav id="nav">
+      <button data-v="slate" class="active">Slate</button>
+      <button data-v="portfolio">Portfolio</button>
+      <button data-v="boards">Leaderboards</button>
+      <button data-v="oracle">Oracle</button>
+    </nav>
+    <span class="countdown" id="countdown">—</span>
+    <span class="conn" id="conn"><span class="led"></span><span id="connlabel">demo</span></span>
+  </div></div>
+
+  <main>
+    <!-- ===== SLATE ===== -->
+    <section class="view on" id="view-slate">
+      <div class="vhead">
+        <div><h2>This week's slate</h2>
+          <div class="desc">Predict <b style="color:var(--ink)">every</b> match, then seal the whole slate at once. Committing the full slate up front is what makes your record auditable — no cherry-picking which games to grade later.</div></div>
+        <span class="pill" id="slate-status">open · locks in <span id="slate-cd">—</span></span>
+      </div>
+      <hr class="sep"/>
+      <div id="slate-matches"></div>
+      <div class="slate-bar"><div class="slate-bar-in">
+        <span class="cov">coverage <b id="cov">0/0</b> · all matches required</span>
+        <span style="flex:1"></span>
+        <button class="btn" id="commit-slate">⊟&nbsp;&nbsp;Seal &amp; commit slate</button>
+      </div></div>
+      <p class="muted" style="margin-top:10px">Each pick is hashed with a private salt (SHA-256) and sealed. After kickoff you reveal the salts in <b>Portfolio</b>; anyone can recompute the hashes and verify you never changed a call. Your distribution is scored against the market's <b>closing line</b>, benchmarked to the market at your submit time.</p>
+    </section>
+
+    <!-- ===== PORTFOLIO ===== -->
+    <section class="view" id="view-portfolio">
+      <div class="vhead">
+        <div><h2>Your portfolio</h2>
+          <div class="desc">Every prediction you've committed, its sealed hash, and — once matches settle — your scores. The metric that matters is <b style="color:var(--ink)">CLV vs your submit-time market</b>: were you closer to the closing line than the market was when you called it?</div></div>
+        <span class="pill" id="port-rev">reveal reliability —</span>
+      </div>
+      <hr class="sep"/>
+      <div class="tiles" id="port-tiles"></div>
+      <div class="grid2">
+        <div class="card"><h3>Settled predictions</h3><div class="sub">scored against the closing line</div>
+          <div id="port-table"></div></div>
+        <div class="card"><h3>Your calibration</h3><div class="sub">predicted probability vs observed frequency — are your numbers honest?</div>
+          <div id="port-calib"></div>
+          <div class="muted" style="margin-top:8px">On the diagonal = well-calibrated. Above = underconfident, below = overconfident.</div></div>
+      </div>
+      <div class="card"><h3>Open commitments (awaiting lock / reveal)</h3><div class="sub">sealed; reveal opens after each match locks</div><div id="port-open"></div></div>
+    </section>
+
+    <!-- ===== LEADERBOARDS ===== -->
+    <section class="view" id="view-boards">
+      <div class="vhead">
+        <div><h2>Two leaderboards, on purpose</h2>
+          <div class="desc">Absolute skill is for the community. <b style="color:var(--ink)">Oracle weight</b> is the product: it rewards contributing information the market hadn't priced — not hugging a sharp line. A market-copier can top the left board and carry near-zero weight on the right.</div></div>
+      </div>
+      <hr class="sep"/>
+      <div class="grid2">
+        <div class="card"><h3>Absolute skill</h3><div class="sub">mean RPS over settled slate (lower = better) · engagement &amp; bragging rights</div>
+          <div id="board-abs"></div></div>
+        <div class="card"><h3>Oracle weight</h3><div class="sub">CLV-driven, LCB-gated, reliability-checked · what powers the crowd forecast</div>
+          <div id="board-oracle"></div></div>
+      </div>
+      <div class="insight" id="board-insight"></div>
+    </section>
+
+    <!-- ===== ORACLE ===== -->
+    <section class="view" id="view-oracle">
+      <div class="vhead">
+        <div><h2>The crowd oracle</h2>
+          <div class="desc">The robust-weighted crowd aggregate vs the market — does the crowd anticipate the closing line before lock? Equal-weight pooling dies on noise; weighting by audited CLV is the oracle.</div></div>
+        <span class="pill" id="oracle-slate">last settled slate</span>
+      </div>
+      <hr class="sep"/>
+      <div class="tiles" id="oracle-tiles"></div>
+      <div class="grid2">
+        <div class="card"><h3>Acceptance gates</h3><div class="sub">the four checks an MVP must clear on real users</div>
+          <div class="gates" id="oracle-gates"></div>
+          <div class="muted" style="margin-top:11px">In this demo the synthetic crowd contains informed archetypes by construction — this shows the gates <b>compute and discriminate</b> (a copycat-only crowd fails them), not that a real crowd has edge.</div></div>
+        <div class="card"><h3>Crowd vs market</h3><div class="sub">RPS of each market line vs the robust crowd aggregate</div>
+          <div id="oracle-bars"></div>
+          <div class="insight" id="oracle-eqcompare" style="margin-top:12px"></div></div>
+      </div>
+      <div class="card"><h3>Crowd calibration</h3><div class="sub">robust-weighted aggregate</div><div id="oracle-calib"></div></div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+<script type="module">
+/* =====================================================================
+   1. Canonical commitment scheme — identical to pof_backend.py / browser terminal
+   ===================================================================== */
+const SCHEME="PoF|v1";
+// API_BASE resolves from (in order): explicit constant, window.POF_API_BASE, ?api= query param.
+// null => self-contained demo. This lets ops point the page at a backend without editing source.
+const API_BASE=(()=>{const explicit=null;
+  try{const u=new URLSearchParams(location.search).get("api");
+    return explicit||window.POF_API_BASE||u||null;}catch(e){return explicit;}})();
+let SLATE;   // demo default assigned just after OPEN_SLATE is defined; replaced by live slate if API_BASE set
+function quantizePermille(h,d,a){const s=h+d+a;const raw=[h/s*1000,d/s*1000,a/s*1000];
+  const fl=raw.map(Math.floor);let rem=1000-fl.reduce((x,y)=>x+y,0);
+  const order=raw.map((v,i)=>[v-fl[i],i]).sort((x,y)=>y[0]-x[0]);for(let k=0;k<rem;k++)fl[order[k][1]]++;return fl;}
+const toHex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");
+function randSalt(){const b=new Uint8Array(32);crypto.getRandomValues(b);return toHex(b);}
+const preimage=(mid,p,salt)=>`${SCHEME}|${mid}|${p[0]}-${p[1]}-${p[2]}|${salt}`;
+async function sha256Hex(s){return toHex(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));}
+
+/* =====================================================================
+   2. Scoring — JS port of phase1.py / engine.py (same definitions)
+   ===================================================================== */
+const EPS=1e-6;
+const clamp=p=>{const c=p.map(x=>Math.max(x,EPS));const s=c.reduce((a,b)=>a+b,0);return c.map(x=>x/s);};
+const meanlog=p=>p.reduce((a,b)=>a+Math.log(b),0)/p.length;
+const clr=p=>{p=clamp(p);const m=meanlog(p);return p.map(x=>Math.log(x)-m);};
+const softmax=z=>{const mx=Math.max(...z);const e=z.map(x=>Math.exp(x-mx));const s=e.reduce((a,b)=>a+b,0);return e.map(x=>x/s);};
+const crossEnt=(qref,p)=>{qref=clamp(qref);p=clamp(p);return -qref.reduce((a,q,i)=>a+q*Math.log(p[i]),0);};
+function rpsOrd(p,yi){const o=[0,0,0];o[yi]=1;const cp=[p[0],p[0]+p[1],1];const co=[o[0],o[0]+o[1],1];
+  return 0.5*((cp[0]-co[0])**2+(cp[1]-co[1])**2);}
+const excessCLV=(p,qSub,qClose)=>crossEnt(qClose,qSub)-crossEnt(qClose,p);   // vs submit-time market
+function logPool(preds,w){const n=preds.length;const Z=preds.map(clr);const zbar=[0,0,0];
+  let W=0;for(let i=0;i<n;i++){const wi=w?w[i]:1;W+=wi;for(let k=0;k<3;k++)zbar[k]+=wi*Z[i][k];}
+  return softmax(zbar.map(x=>x/(W||1)));}
+function ece(preds,ys,bins=10){let pp=[],oo=[];preds.forEach((p,i)=>{p=clamp(p);const o=[0,0,0];o[ys[i]]=1;
+  for(let k=0;k<3;k++){pp.push(p[k]);oo.push(o[k]);}});let e=0,N=pp.length;
+  for(let b=0;b<bins;b++){const lo=b/bins,hi=(b+1)/bins;const idx=pp.map((v,i)=>v>=lo&&v<(hi+(b===bins-1?1e-9:0))?i:-1).filter(i=>i>=0);
+    if(idx.length){const mp=idx.reduce((a,i)=>a+pp[i],0)/idx.length;const mo=idx.reduce((a,i)=>a+oo[i],0)/idx.length;e+=idx.length/N*Math.abs(mp-mo);}}return e;}
+function calibBins(preds,ys,bins=10){let pp=[],oo=[];preds.forEach((p,i)=>{p=clamp(p);const o=[0,0,0];o[ys[i]]=1;for(let k=0;k<3;k++){pp.push(p[k]);oo.push(o[k]);}});
+  const pts=[];for(let b=0;b<bins;b++){const lo=b/bins,hi=(b+1)/bins;const idx=pp.map((v,i)=>v>=lo&&v<(hi+(b===bins-1?1e-9:0))?i:-1).filter(i=>i>=0);
+    if(idx.length>4)pts.push([idx.reduce((a,i)=>a+pp[i],0)/idx.length,idx.reduce((a,i)=>a+oo[i],0)/idx.length]);}return pts;}
+const mean=a=>a.reduce((x,y)=>x+y,0)/a.length;
+const sd=a=>{const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)**2,0)/Math.max(a.length-1,1));};
+
+/* =====================================================================
+   3. Seeded demo data (SYNTHETIC crowd, plausible markets) — labeled in UI
+   ===================================================================== */
+function mulberry32(s){return function(){s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const rnd=mulberry32(20260611);
+const gauss=()=>{let u=0,v=0;while(!u)u=rnd();while(!v)v=rnd();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);};
+const FLAG={ESP:"#c60b1e,#ffc400",CRO:"#171796,#ff0000",BRA:"#009b3a,#ffdf00",CMR:"#007a5e,#fcd116",ARG:"#74acdf,#ffffff",NGA:"#008751,#ffffff",ENG:"#ffffff,#ce1124",USA:"#3c3b6e,#b22234",FRA:"#0055a4,#ef4135",DEN:"#c8102e,#ffffff",GER:"#000000,#dd0000",JPN:"#ffffff,#bc002d",MEX:"#006847,#ce1126",POL:"#ffffff,#dc143c",NED:"#21468b,#ae1c28",ECU:"#ffd100,#0072ce",POR:"#006600,#ff0000",GHA:"#006b3f,#fcd116",BEL:"#000000,#fdda24",CAN:"#ff0000,#ffffff",MAR:"#c1272d,#006233"};
+const flagCss=c=>{const[a,b]=(FLAG[c]||"#444,#666").split(",");return `background:linear-gradient(90deg,${a} 50%,${b} 50%)`;};
+
+// open slate (user predicts) — Matchday 2
+const OPEN_SLATE={id:"WC26-G-MD2",label:"World Cup 2026 · Group Stage · Matchday 2",
+  locks_in_h:9.4*24, matches:[
+  {id:520201,comp:"GROUP E",h:"Spain",a:"Croatia",hc:"ESP",ac:"CRO",ko_h:9.5*24,q:[0.58,0.24,0.18]},
+  {id:520202,comp:"GROUP G",h:"Brazil",a:"Cameroon",hc:"BRA",ac:"CMR",ko_h:9.6*24,q:[0.74,0.17,0.09]},
+  {id:520203,comp:"GROUP D",h:"Argentina",a:"Nigeria",hc:"ARG",ac:"NGA",ko_h:9.7*24,q:[0.66,0.21,0.13]},
+  {id:520204,comp:"GROUP B",h:"England",a:"USA",hc:"ENG",ac:"USA",ko_h:9.8*24,q:[0.55,0.27,0.18]},
+  {id:520205,comp:"GROUP F",h:"France",a:"Denmark",hc:"FRA",ac:"DEN",ko_h:9.9*24,q:[0.52,0.28,0.20]},
+]};
+SLATE=OPEN_SLATE;
+
+// settled slate (powers Portfolio history + Leaderboards + Oracle) — Matchdays 1+2 settled
+const SETTLED={id:"WC26-G-MD1-2",label:"World Cup 2026 · Group Stage · settled to date",matches:[
+  {id:520101,h:"Germany",a:"Japan",hc:"GER",ac:"JPN",qo:[0.62,0.22,0.16],ql:[0.56,0.24,0.20],qc:[0.52,0.25,0.23],res:2},
+  {id:520102,h:"Mexico",a:"Poland",hc:"MEX",ac:"POL",qo:[0.45,0.29,0.26],ql:[0.43,0.30,0.27],qc:[0.42,0.30,0.28],res:1},
+  {id:520103,h:"Netherlands",a:"Ecuador",hc:"NED",ac:"ECU",qo:[0.60,0.25,0.15],ql:[0.55,0.27,0.18],qc:[0.50,0.28,0.22],res:1},
+  {id:520104,h:"Portugal",a:"Ghana",hc:"POR",ac:"GHA",qo:[0.64,0.22,0.14],ql:[0.66,0.21,0.13],qc:[0.67,0.21,0.12],res:0},
+  {id:520105,h:"Belgium",a:"Canada",hc:"BEL",ac:"CAN",qo:[0.61,0.24,0.15],ql:[0.63,0.23,0.14],qc:[0.64,0.23,0.13],res:0},
+  {id:520106,h:"Morocco",a:"Croatia",hc:"MAR",ac:"CRO",qo:[0.30,0.33,0.37],ql:[0.31,0.34,0.35],qc:[0.32,0.34,0.34],res:1},
+  {id:520107,h:"Spain",a:"Croatia",hc:"ESP",ac:"CRO",qo:[0.55,0.26,0.19],ql:[0.57,0.25,0.18],qc:[0.59,0.24,0.17],res:0},
+  {id:520108,h:"Brazil",a:"Serbia",hc:"BRA",ac:"CRO",qo:[0.70,0.20,0.10],ql:[0.72,0.18,0.10],qc:[0.73,0.18,0.09],res:0},
+  {id:520109,h:"France",a:"Australia",hc:"FRA",ac:"DEN",qo:[0.71,0.19,0.10],ql:[0.73,0.18,0.09],qc:[0.74,0.18,0.08],res:0},
+  {id:520110,h:"Argentina",a:"Mexico",hc:"ARG",ac:"MEX",qo:[0.55,0.27,0.18],ql:[0.56,0.27,0.17],qc:[0.58,0.26,0.16],res:0},
+  {id:520111,h:"England",a:"Iran",hc:"ENG",ac:"USA",qo:[0.72,0.18,0.10],ql:[0.74,0.17,0.09],qc:[0.75,0.17,0.08],res:0},
+  {id:520112,h:"Japan",a:"Costa Rica",hc:"JPN",ac:"CRO",qo:[0.52,0.28,0.20],ql:[0.50,0.29,0.21],qc:[0.48,0.30,0.22],res:2},
+]};
+
+// path point between q_open and q_close at fraction t (clr-geodesic) — q_submit per user
+const pathPt=(qo,qc,t)=>softmax(clr(qo).map((z,i)=>(1-t)*z+t*clr(qc)[i]));
+const sharpen=(p,g)=>{const q=clamp(p).map(x=>x**g);const s=q.reduce((a,b)=>a+b,0);return q.map(x=>x/s);};
+
+// synthetic crowd archetypes
+const ARCHES=[
+  {key:"informed",n:14,t:[0.05,0.35],skill:0.45,name:i=>`sharp_scout_${i}`},
+  {key:"informed",n:10,t:[0.55,0.8],skill:0.4,name:i=>`late_analyst_${i}`},
+  {key:"copy",n:12,t:[0.7,0.88],name:i=>`line_hugger_${i}`},   // copies a sharp late market -> low RPS, ~0 CLV
+  {key:"copy",n:8,t:[0.05,0.2],name:i=>`market_echo_${i}`},
+  {key:"noise",n:10,g:2.4,t:[0.2,0.5],name:i=>`hot_take_${i}`},
+];
+function buildCrowd(){
+  const users=[];let uid=0;
+  for(const A of ARCHES){for(let i=0;i<A.n;i++){
+    const t=A.t[0]+rnd()*(A.t[1]-A.t[0]);
+    const u={id:uid++,name:A.name(i+1),arche:A.key,preds:[],qsub:[]};
+    for(const m of SETTLED.matches){
+      const qs=pathPt(m.qo,m.qc,t);
+      let p;
+      if(A.key==="informed") p=softmax(clr(qs).map((z,k)=>(1-A.skill)*z+A.skill*(clr(m.qc)[k]+gauss()*0.10)));
+      else if(A.key==="copy") p=qs.slice();
+      else p=sharpen(qs,A.g);
+      u.preds.push(clamp(p));u.qsub.push(qs);
+    }
+    u.reveal = rnd()<0.985;   // most reveal
+    users.push(u);
+  }}
+  // the human player ("you") — a decent informed-ish predictor
+  const you={id:uid++,name:"you",arche:"you",preds:[],qsub:[],reveal:true,me:true};
+  for(const m of SETTLED.matches){const t=0.25;const qs=pathPt(m.qo,m.qc,t);
+    you.qsub.push(qs);you.preds.push(softmax(clr(qs).map((z,k)=>0.7*z+0.3*(clr(m.qc)[k]+gauss()*0.13))));}
+  users.push(you);
+  return users;
+}
+function scoreUser(u){
+  const rps=[],clv=[],alpha=[];
+  SETTLED.matches.forEach((m,j)=>{
+    rps.push(rpsOrd(u.preds[j],m.res));
+    clv.push(excessCLV(u.preds[j],u.qsub[j],m.qc));
+    alpha.push(rpsOrd(m.qc,m.res)-rpsOrd(u.preds[j],m.res));
+  });
+  const meanClv=mean(clv);const seClv=sd(clv)/Math.sqrt(clv.length);
+  return {meanRps:mean(rps),meanClv,seClv,lcb:meanClv-1.64*seClv,meanAlpha:mean(alpha),
+    reveal:u.reveal?1:0, rpsArr:rps};
+}
+
+/* =====================================================================
+   4. State + compute
+   ===================================================================== */
+const CROWD=buildCrowd();
+CROWD.forEach(u=>u.s=scoreUser(u));
+const REVEALERS=CROWD.filter(u=>u.reveal);
+// robust oracle aggregate per match: weight users by clip(LCB,0), gated on reveal reliability>=0.95
+function oracleWeights(){const w=CROWD.map(u=>(u.reveal && u.s.lcb>0)?u.s.lcb:0);return w;}
+function crowdAgg(weights){return SETTLED.matches.map((m,j)=>logPool(CROWD.map(u=>u.preds[j]),weights));}
+const W=oracleWeights();
+const eligibleCount=W.filter(x=>x>0).length;
+const crowdRobust=crowdAgg(W);
+const crowdEqual=crowdAgg(CROWD.map(()=>1));
+const ys=SETTLED.matches.map(m=>m.res);
+// metrics
+const clvVsSubmit=arr=>mean(SETTLED.matches.map((m,j)=>excessCLV(arr[j],/*crowd submit≈*/logPool(CROWD.map(u=>u.qsub[j])),m.qc)));
+const clvVsLock=arr=>mean(SETTLED.matches.map((m,j)=>crossEnt(m.qc,m.ql)-crossEnt(m.qc,arr[j])));
+const rpsOf=arr=>mean(SETTLED.matches.map((m,j)=>rpsOrd(arr[j],m.res)));
+const M={
+  rps_open:rpsOf(SETTLED.matches.map(m=>m.qo)),
+  rps_lock:rpsOf(SETTLED.matches.map(m=>m.ql)),
+  rps_close:rpsOf(SETTLED.matches.map(m=>m.qc)),
+  rps_crowd:rpsOf(crowdRobust),
+  clv_submit_robust:clvVsSubmit(crowdRobust),
+  clv_submit_equal:clvVsSubmit(crowdEqual),
+  clv_lock_robust:clvVsLock(crowdRobust),
+  clv_lock_equal:clvVsLock(crowdEqual),
+  reveal_rel:mean(CROWD.map(u=>u.reveal?1:0)),
+  ece_crowd:ece(crowdRobust,ys),
+};
+// public-model reference (a fixed decent model = q_open lightly sharpened toward close)
+const pubModel=SETTLED.matches.map(m=>softmax(clr(m.qo).map((z,k)=>0.6*z+0.4*clr(m.qc)[k])));
+M.clv_lock_pub=clvVsLock(pubModel);
+const GATES={
+  P1:{ok:M.reveal_rel>=0.95, t:"Reveal reliability ≥ 95%", d:`${(M.reveal_rel*100).toFixed(1)}% revealed · non-revealers worst-cased`},
+  P2:{ok:M.clv_submit_robust>0, t:"Crowd excess CLV vs submit > 0", d:`mean ${M.clv_submit_robust>=0?"+":""}${M.clv_submit_robust.toFixed(4)} nats`},
+  P3:{ok:M.clv_lock_robust>M.clv_lock_pub, t:"Crowd beats a public model vs lock", d:`crowd ${M.clv_lock_robust.toFixed(4)} vs model ${M.clv_lock_pub.toFixed(4)}`},
+  P4:(()=>{const enough=SETTLED.matches.length>=60; const ok=M.ece_crowd<=0.08;
+        return {ok, pending:!enough, t:"Calibration holds",
+          d: enough?`ECE ${M.ece_crowd.toFixed(3)}`:`needs ≥60 settled matches to judge; have ${SETTLED.matches.length} (small-sample ECE ${M.ece_crowd.toFixed(2)} is noise, not miscalibration)`};})(),
+};
+
+/* =====================================================================
+   5. SVG chart helpers
+   ===================================================================== */
+function calibSVG(pts){
+  const W=300,H=210,pad=34;const x=v=>pad+v*(W-pad-10);const y=v=>H-pad-v*(H-pad-14);
+  let g="";for(let i=0;i<=4;i++){const v=i/4;g+=`<line class="grid" x1="${x(v)}" y1="${y(0)}" x2="${x(v)}" y2="${y(1)}"/><line class="grid" x1="${x(0)}" y1="${y(v)}" x2="${x(1)}" y2="${y(v)}"/>`;}
+  const diag=`<line x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}" stroke="#5e6975" stroke-dasharray="4 4" stroke-width="1"/>`;
+  const path=pts.length?`<polyline fill="none" stroke="var(--signal)" stroke-width="2.5" points="${pts.map(p=>`${x(p[0])},${y(p[1])}`).join(" ")}"/>`+pts.map(p=>`<circle cx="${x(p[0])}" cy="${y(p[1])}" r="3.2" fill="var(--signal)"/>`).join(""):`<text x="${W/2}" y="${H/2}" fill="var(--ink-faint)" font-size="11" text-anchor="middle">not enough settled data yet</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:340px">${g}${diag}${path}
+    <line class="axis" x1="${pad}" y1="${y(0)}" x2="${W-10}" y2="${y(0)}"/><line class="axis" x1="${pad}" y1="${y(0)}" x2="${pad}" y2="${y(1)}"/>
+    <text x="${x(0.5)}" y="${H-6}" fill="var(--ink-faint)" font-size="9" text-anchor="middle">predicted</text>
+    <text x="11" y="${y(0.5)}" fill="var(--ink-faint)" font-size="9" text-anchor="middle" transform="rotate(-90 11 ${y(0.5)})">observed</text></svg>`;
+}
+function barsSVG(rows){ // rows: [{label,val,color,hl}]
+  const W=320,H=40+rows.length*30,pad=120;const max=Math.max(...rows.map(r=>r.val))*1.04,min=Math.min(...rows.map(r=>r.val))*0.985;
+  const x=v=>pad+(v-min)/(max-min)*(W-pad-44);
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
+  rows.forEach((r,i)=>{const yy=22+i*30;s+=`<text x="${pad-8}" y="${yy+12}" fill="${r.hl?'var(--signal)':'var(--ink-dim)'}" font-size="10.5" text-anchor="end">${r.label}</text>
+    <rect x="${pad}" y="${yy+3}" width="${Math.max(x(r.val)-pad,2)}" height="13" rx="3" fill="${r.color}"/>
+    <text x="${x(r.val)+5}" y="${yy+13}" fill="var(--ink)" font-size="10" font-weight="600">${r.val.toFixed(4)}</text>`;});
+  return s+`</svg>`;
+}
+
+/* =====================================================================
+   6. Renderers
+   ===================================================================== */
+const $=s=>document.querySelector(s);const $$=s=>[...document.querySelectorAll(s)];
+const RES=["H","D","A"];
+const committed=JSON.parse(localStorage.getItem("pof_app_commits")||"null");
+
+// ---- SLATE ----
+const sliderState={};
+function renderSlate(){
+  const wrap=$("#slate-matches");wrap.innerHTML="";
+  const sealed=!!committed;
+  SLATE.matches.forEach((m,idx)=>{
+    if(!sliderState[m.id]) sliderState[m.id]=[Math.round(m.q[0]*100),Math.round(m.q[1]*100),Math.round(m.q[2]*100)];
+    const c=document.createElement("div");c.className="card matchcard";c.style.animationDelay=(idx*60)+"ms";
+    const koTxt = m.ko_at ? "kickoff "+new Date(m.ko_at).toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"})
+                          : "kickoff +"+(m.ko_h/24).toFixed(1)+"d";
+    c.innerHTML=`<div class="mc-top"><span class="mc-comp">${SLATE.label.split(" · ").pop()}${m.comp?" · "+m.comp:""}</span><span class="mc-ko">${koTxt}</span></div>
+      <div class="mc-teams"><span class="mc-flag" style="${flagCss(m.hc)}"></span>${m.h}<span class="vs">vs</span>${m.a}<span class="mc-flag" style="${flagCss(m.ac)}"></span></div>
+      <div class="sliders" data-mid="${m.id}">
+        ${["h","d","a"].map((cl,k)=>`<div class="srow"><span class="lab ${cl}">${["Home","Draw","Away"][k]}</span>
+          <input type="range" min="1" max="98" class="${cl}" data-k="${k}" value="${sliderState[m.id][k]}" ${sealed?"disabled":""}/>
+          <span class="pv" data-pv="${k}">${sliderState[m.id][k]}%</span></div>`).join("")}
+      </div>
+      <div class="distbar"><i class="sh"></i><i class="sd"></i><i class="sa"></i></div>
+      <div class="mc-foot"><span>vs no-vig market ${m.q.map(x=>Math.round(x*100)).join(" / ")}</span><span class="dev" data-dev>deviation —</span></div>`;
+    wrap.appendChild(c);
+    const upd=()=>{const v=sliderState[m.id];const perm=quantizePermille(v[0],v[1],v[2]);const pr=perm.map(x=>x/10);
+      c.querySelectorAll("[data-pv]").forEach(el=>{el.textContent=v[+el.dataset.pv]+"%";});
+      const[bh,bd,ba]=c.querySelectorAll(".distbar i");bh.style.width=pr[0]+"%";bd.style.width=pr[1]+"%";ba.style.width=pr[2]+"%";
+      const dev=100*(Math.abs(perm[0]/1000-m.q[0])+Math.abs(perm[1]/1000-m.q[1])+Math.abs(perm[2]/1000-m.q[2]))/2;
+      const d=c.querySelector("[data-dev]");d.textContent="deviation "+dev.toFixed(1)+" pts";d.className="dev"+(dev>8?" pos":"");};
+    c.querySelectorAll("input").forEach(inp=>inp.addEventListener("input",()=>{sliderState[m.id][+inp.dataset.k]=+inp.value;upd();}));
+    upd();
+  });
+  $("#cov").textContent=`${SLATE.matches.length}/${SLATE.matches.length}`;
+  if(SLATE.matches.length===0){wrap.innerHTML=`<div class="card"><p class="muted">No open slate right now. The next slate appears here when fixtures open for the upcoming matchday.</p></div>`;}
+  const btn=$("#commit-slate");
+  if(sealed){btn.disabled=true;btn.textContent="✓  Slate sealed";$("#slate-status").innerHTML='<span style="color:var(--signal)">sealed · awaiting lock</span>';}
+}
+$("#commit-slate").addEventListener("click",async()=>{
+  if(SLATE.matches.length===0){toast("No open slate to commit.");return;}
+  const btn=$("#commit-slate");btn.disabled=true;btn.textContent="sealing…";
+  const recs=[];
+  for(const m of SLATE.matches){const v=sliderState[m.id];const perm=quantizePermille(v[0],v[1],v[2]);
+    const salt=randSalt();const hash=await sha256Hex(preimage(m.id,perm,salt));
+    recs.push({match_id:m.id,home:m.h,away:m.a,p_permille:perm,salt,commitment_hash:hash,q_submit:m.q,submitted_at:new Date().toISOString()});
+  }
+  if(API_BASE){
+    // live: POST each commitment, verify the server accepted ALL before sealing locally
+    const fails=[];
+    for(const r of recs){
+      try{const resp=await fetch(`${API_BASE}/api/predictions`,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({user_id:USER_ID,match_id:r.match_id,commitment_hash:r.commitment_hash})});
+        if(!resp.ok){const e=await resp.json().catch(()=>({}));fails.push(`${r.home}–${r.away}: ${e.detail||resp.status}`);}
+      }catch(e){fails.push(`${r.home}–${r.away}: network error`);}
+    }
+    if(fails.length){btn.disabled=false;btn.innerHTML="⊟&nbsp;&nbsp;Seal &amp; commit slate";
+      toast(`Commit failed — ${fails[0]}`);return;}
+  }
+  localStorage.setItem("pof_app_commits",JSON.stringify({slate:SLATE.id,at:new Date().toISOString(),recs}));
+  toast(`Slate sealed · ${recs.length} predictions committed & hashed${API_BASE?" to server":""}`);
+  setTimeout(()=>location.reload(),700);
+});
+
+// ---- PORTFOLIO ----
+function renderPortfolio(){
+  const you=CROWD.find(u=>u.me);const s=you.s;
+  $("#port-rev").textContent=`reveal reliability ${(s.reveal*100).toFixed(0)}%`;
+  $("#port-tiles").innerHTML=[
+    [`${s.meanClv>=0?"+":""}${s.meanClv.toFixed(4)}`,"sig","mean CLV vs submit","your edge over the line you faced"],
+    [s.meanRps.toFixed(4),"blue","mean RPS","absolute accuracy (lower better)"],
+    [`${s.meanAlpha>=0?"+":""}${s.meanAlpha.toFixed(4)}`,s.meanAlpha>=0?"sig":"bad","realized α vs close","outcome-based (high variance)"],
+    [`${SETTLED.matches.length}`,"","settled picks","scored to date"],
+  ].map(([v,c,k,sub])=>`<div class="tile"><div class="v ${c}">${v}</div><div class="k">${k}<br/><span style="color:#454e58">${sub}</span></div></div>`).join("");
+  // settled table
+  let rows=SETTLED.matches.map((m,j)=>{const p=you.preds[j];const perm=p.map(x=>Math.round(x*1000));
+    const clv=excessCLV(p,you.qsub[j],m.qc);const rps=rpsOrd(p,m.res);
+    return `<tr><td>${m.h.slice(0,3).toUpperCase()}–${m.a.slice(0,3).toUpperCase()}</td>
+      <td>${(p[0]*100).toFixed(0)}/${(p[1]*100).toFixed(0)}/${(p[2]*100).toFixed(0)}</td>
+      <td><b style="color:var(--ink)">${RES[m.res]}</b></td>
+      <td>${rps.toFixed(3)}</td><td class="${clv>=0?'pos':'neg'}">${clv>=0?"+":""}${clv.toFixed(4)}</td>
+      <td><span class="status scored">scored</span></td></tr>`;}).join("");
+  $("#port-table").innerHTML=`<table><thead><tr><th>match</th><th>your H/D/A</th><th>result</th><th>RPS</th><th>CLV</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  $("#port-calib").innerHTML=calibSVG(calibBins(you.preds,ys,6));
+  // open commitments
+  const op=$("#port-open");
+  if(committed){op.innerHTML=`<table><thead><tr><th>match</th><th>your H/D/A</th><th>commitment hash</th><th>status</th></tr></thead><tbody>${
+    committed.recs.map(r=>`<tr><td>${r.home.slice(0,3).toUpperCase()}–${r.away.slice(0,3).toUpperCase()}</td>
+      <td>${(r.p_permille[0]/10).toFixed(0)}/${(r.p_permille[1]/10).toFixed(0)}/${(r.p_permille[2]/10).toFixed(0)}</td>
+      <td class="hash">${r.commitment_hash.slice(0,30)}…</td><td><span class="status sealed">sealed</span></td></tr>`).join("")}</tbody></table>
+    <div style="display:flex;gap:9px;margin-top:12px"><button class="btn ghost sm" id="reveal-all">reveal all (after lock)</button><button class="btn ghost sm" id="clear-commits">reset demo commits</button></div>
+    <p class="muted" style="margin-top:9px">Salts are held by your client and revealed after each match locks. Reveal recomputes each hash on the server byte-for-byte; a sealed call can't be altered.</p>`;
+    $("#reveal-all").addEventListener("click",()=>toast("Reveal opens once matches lock — salts verify against the sealed hashes"));
+    $("#clear-commits").addEventListener("click",()=>{localStorage.removeItem("pof_app_commits");location.reload();});
+  } else {op.innerHTML=`<p class="muted">No open commitments yet. Head to <b style="color:var(--signal)">Slate</b> and seal this week's predictions.</p>`;}
+}
+
+// ---- BOARDS ----
+function renderBoards(){
+  const ranked=[...CROWD].map(u=>({u,...u.s,wt:(u.reveal&&u.s.lcb>0)?u.s.lcb:0}));
+  // absolute: by mean RPS asc
+  const abs=[...ranked].sort((a,b)=>a.meanRps-b.meanRps).slice(0,10);
+  $("#board-abs").innerHTML=`<table><thead><tr><th class="rank">#</th><th>user</th><th>mean RPS</th><th>CLV</th></tr></thead><tbody>${
+    abs.map((r,i)=>`<tr class="${r.u.me?'me':''}"><td class="rank">${i+1}</td>
+      <td class="uname">${r.u.name}${r.u.me?'<span class="you">you</span>':''}${r.u.arche==='copy'?'<span class="flag-bad">market-hugger</span>':''}</td>
+      <td>${r.meanRps.toFixed(4)}</td><td class="${r.meanClv>=0?'pos':'neg'}">${r.meanClv>=0?"+":""}${r.meanClv.toFixed(4)}</td></tr>`).join("")}</tbody></table>`;
+  // oracle: eligible (reveal & lcb>0) by lcb desc; show weight
+  const elig=ranked.filter(r=>r.wt>0).sort((a,b)=>b.lcb-a.lcb);const wsum=elig.reduce((a,r)=>a+r.wt,0);
+  const oracle=elig.slice(0,10);
+  $("#board-oracle").innerHTML=`<table><thead><tr><th class="rank">#</th><th>user</th><th>CLV (LCB)</th><th>weight</th></tr></thead><tbody>${
+    oracle.map((r,i)=>`<tr class="${r.u.me?'me':''}"><td class="rank">${i+1}</td>
+      <td class="uname">${r.u.name}${r.u.me?'<span class="you">you</span>':''}${r.reveal?'':'<span class="flag-bad">unrevealed</span>'}</td>
+      <td class="pos">+${r.meanClv.toFixed(4)} <span style="color:var(--ink-faint)">(${r.lcb.toFixed(4)})</span></td>
+      <td><span class="wbar"><i style="width:${(r.wt/elig[0].wt*100).toFixed(0)}%"></i></span>${(r.wt/wsum*100).toFixed(1)}%</td></tr>`).join("")}</tbody></table>
+    <p class="muted" style="margin-top:9px">${eligibleCount}/${CROWD.length} contributors eligible (positive CLV lower-bound + reveal reliability). Everyone else carries zero oracle weight.</p>`;
+  // insight: a market-hugger near top-left, bottom-right
+  const hugger=ranked.filter(r=>r.u.arche==='copy').sort((a,b)=>a.meanRps-b.meanRps)[0];
+  const absRank=abs.findIndex(r=>r.u===hugger.u);
+  $("#board-insight").innerHTML=`<b>The two boards disagree on purpose.</b> ${hugger.u.name} hugs the sharp closing line — ${absRank>=0?`#${absRank+1} on absolute skill (RPS ${hugger.meanRps.toFixed(4)})`:`strong on absolute skill`}, yet its CLV is ${hugger.meanClv.toFixed(4)} and its oracle weight is <b style="color:var(--ink)">~0</b>. Copying a sharp market scores well on accuracy but adds no information, so it earns nothing in the oracle. Edge ≠ accuracy.`;
+}
+
+// ---- ORACLE ----
+function renderOracle(){
+  $("#oracle-slate").textContent=SETTLED.label.split(" · ").slice(-2).join(" · ");
+  $("#oracle-tiles").innerHTML=[
+    [`${M.clv_submit_robust>=0?"+":""}${M.clv_submit_robust.toFixed(4)}`,M.clv_submit_robust>=0?"sig":"bad","crowd CLV vs submit","robust-weighted aggregate"],
+    [`${M.clv_lock_robust>=0?"+":""}${M.clv_lock_robust.toFixed(4)}`,M.clv_lock_robust>=0?"sig":"bad","crowd CLV vs lock","beats the lock market?"],
+    [M.rps_crowd.toFixed(4),"blue","crowd RPS","vs close "+M.rps_close.toFixed(4)],
+    [`${eligibleCount}/${CROWD.length}`,"","eligible contributors","LCB>0 & revealed"],
+  ].map(([v,c,k,sub])=>`<div class="tile"><div class="v ${c}">${v}</div><div class="k">${k}<br/><span style="color:#454e58">${sub}</span></div></div>`).join("");
+  $("#oracle-gates").innerHTML=Object.entries(GATES).map(([k,g])=>{
+    const cls=g.pending?'pend':(g.ok?'':'fail'); const bcls=g.pending?'pend':(g.ok?'pass':'fail');
+    const lbl=g.pending?'PENDING':(g.ok?'PASS':'FAIL');
+    return `<div class="gate ${cls}"><span class="gid">${k}</span><span class="gt">${g.t}<span class="badge ${bcls}">${lbl}</span><small>${g.d}</small></span></div>`;}).join("");
+  $("#oracle-bars").innerHTML=barsSVG([
+    {label:"opening",val:M.rps_open,color:"var(--home)"},
+    {label:"lock",val:M.rps_lock,color:"var(--draw)"},
+    {label:"closing (bar)",val:M.rps_close,color:"var(--signal)"},
+    {label:"crowd (robust)",val:M.rps_crowd,color:"var(--violet)",hl:true},
+  ]);
+  $("#oracle-eqcompare").innerHTML=`<b>Equal-weight dies; robust weighting is the oracle.</b> An equal-weight crowd scores CLV-vs-submit ${M.clv_submit_equal.toFixed(4)} (dragged down by noise &amp; copycats). Gating + weighting by audited CLV recovers ${M.clv_submit_robust>=0?"+":""}${M.clv_submit_robust.toFixed(4)} with ECE ${M.ece_crowd.toFixed(4)}. The weighting <b style="color:#cfe0ff">is</b> the product.`;
+  $("#oracle-calib").innerHTML=calibSVG(calibBins(crowdRobust,ys,6));
+}
+
+/* =====================================================================
+   7. Nav + clocks + init
+   ===================================================================== */
+const RENDER={slate:renderSlate,portfolio:renderPortfolio,boards:renderBoards,oracle:renderOracle};
+const rendered={};
+function show(v){$$(".view").forEach(s=>s.classList.toggle("on",s.id==="view-"+v));
+  $$("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.v===v));
+  if(!rendered[v]){RENDER[v]();rendered[v]=true;} if(v==="slate")RENDER.slate();}
+$$("#nav button").forEach(b=>b.addEventListener("click",()=>show(b.dataset.v)));
+
+const USER_ID=(()=>{try{let u=localStorage.getItem("pof_uid");if(!u){u="u_"+Math.random().toString(36).slice(2,10);localStorage.setItem("pof_uid",u);}return u;}catch(e){return "demo-user";}})();
+
+if(API_BASE){$("#conn").classList.add("live");$("#connlabel").textContent="live · "+API_BASE.replace(/^https?:\/\//,"");}
+else{$("#connlabel").textContent='demo · synthetic data';}
+
+function fmtCd(ms){if(ms<=0)return"LOCKED";const d=Math.floor(ms/864e5),h=Math.floor(ms%864e5/36e5),m=Math.floor(ms%36e5/6e4);return`${d}d ${h}h ${m}m`;}
+function slateLockTs(){ // earliest match lock if live (absolute), else demo offset
+  if(SLATE.matches.length && SLATE.matches[0].lock_at) return Math.min(...SLATE.matches.map(m=>m.lock_at));
+  return Date.now()+(SLATE.locks_in_h||0)*36e5;}
+function tick(){const left=slateLockTs()-Date.now();$("#countdown").innerHTML=`slate locks <b>${fmtCd(left)}</b>`;const sc=$("#slate-cd");if(sc)sc.textContent=fmtCd(left);}
+setInterval(tick,1000);tick();
+
+let tt=null;function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(tt);tt=setTimeout(()=>t.classList.remove("show"),2800);}
+
+// ---- live slate loader: pull the open slate from the backend when API_BASE is set ----
+async function loadSlate(){
+  if(!API_BASE) return;
+  try{
+    const r=await fetch(`${API_BASE}/api/fixtures/open`);
+    if(!r.ok) throw 0;
+    const d=await r.json();
+    SLATE={id:"live", label:(d.slate[0]?.competition)||"Live slate", live:true,
+      matches:(d.slate||[]).map(f=>({id:f.match_id, comp:"", h:f.home, a:f.away,
+        hc:(f.home||"").slice(0,3).toUpperCase(), ac:(f.away||"").slice(0,3).toUpperCase(),
+        ko_at:f.kickoff_at, lock_at:f.lock_at, q:f.q_submit}))};
+  }catch(e){ toast("Backend unreachable — showing demo slate"); }
+  renderSlate(); tick();
+}
+
+renderSlate();rendered.slate=true;
+loadSlate();
+</script>
+</body>
+</html>

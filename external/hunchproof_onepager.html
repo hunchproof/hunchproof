@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hunchproof — Phase 0–1 Technical Brief</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,900&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  :root{
+    --bg:#0a0c0e; --panel:#11151a; --panel-2:#161b22; --line:#222a33; --line-2:#2c3744;
+    --ink:#eef2f6; --ink-dim:#97a3b0; --ink-faint:#5e6975;
+    --signal:#3ddc97; --signal-dim:#1d9e75; --blue:#3d8bff; --warn:#e0913a; --bad:#d85a30; --violet:#9a86d8;
+    --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace; --disp:'Fraunces',Georgia,serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--mono);-webkit-font-smoothing:antialiased;line-height:1.6}
+  body{background-image:radial-gradient(1100px 560px at 82% -8%,rgba(61,220,151,.06),transparent 60%),radial-gradient(820px 460px at -8% 108%,rgba(61,139,255,.05),transparent 55%);}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.022;z-index:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .wrap{position:relative;z-index:1;max-width:1000px;margin:0 auto;padding:46px 30px 80px}
+
+  /* masthead */
+  .mast{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;border-bottom:2px solid var(--line-2);padding-bottom:22px}
+  .mast h1{font-family:var(--disp);font-weight:900;font-size:40px;line-height:.98;letter-spacing:-.025em;margin:0}
+  .mast .tag{color:var(--ink-faint);font-size:11px;letter-spacing:.22em;text-transform:uppercase;margin-top:8px}
+  .mast .meta{text-align:right;font-size:11px;color:var(--ink-dim);line-height:1.7;white-space:nowrap}
+  .mast .meta b{color:var(--signal)}
+
+  .lede{font-family:var(--disp);font-size:20px;font-weight:400;line-height:1.5;color:var(--ink);margin:26px 0 8px;letter-spacing:-.01em}
+  .lede b{font-weight:600;color:#fff}
+  .sub{color:var(--ink-dim);font-size:13.5px;max-width:78ch}
+
+  h2{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--signal-dim);
+     margin:38px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);display:flex;align-items:baseline;gap:10px}
+  h2 .n{font-family:var(--disp);font-size:13px;color:var(--ink-faint)}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel-2));border:1px solid var(--line);border-radius:13px;padding:18px 19px}
+  .card h3{font-family:var(--disp);font-size:17px;font-weight:600;margin:0 0 8px}
+  .card p{font-size:12.5px;color:var(--ink-dim);margin:0}
+
+  /* metric tiles */
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:6px 0 4px}
+  .tile{background:#06090b;border:1px solid var(--line);border-radius:11px;padding:15px 14px;text-align:left}
+  .tile .v{font-family:var(--disp);font-size:27px;font-weight:600;line-height:1;letter-spacing:-.02em}
+  .tile .v.sig{color:var(--signal)} .tile .v.blue{color:var(--blue)} .tile .v.warn{color:var(--warn)}
+  .tile .k{font-size:10.5px;color:var(--ink-faint);letter-spacing:.04em;margin-top:9px;line-height:1.45}
+
+  /* the bar visual */
+  .bars{margin:8px 0 2px}
+  .bar{display:grid;grid-template-columns:188px 1fr 64px;align-items:center;gap:13px;margin:9px 0;font-size:12px}
+  .bar .lab{color:var(--ink-dim);text-align:right}
+  .bar .lab.hl{color:var(--signal);font-weight:600}
+  .bar .track{height:21px;background:#06090b;border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative}
+  .bar .fill{height:100%;border-radius:5px 0 0 5px}
+  .bar .val{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink)}
+  .bar.b-clim .fill{background:var(--ink-faint);width:100%}
+  .bar.b-open .fill{background:var(--blue);width:83.8%}
+  .bar.b-close .fill{background:var(--signal);width:83.1%}
+  .bar.b-model .fill{background:var(--bad);width:88.2%}
+  .barnote{font-size:11px;color:var(--ink-faint);margin-top:6px}
+
+  .gates{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-top:4px}
+  .gate{display:flex;gap:12px;align-items:flex-start;background:#06090b;border:1px solid var(--line);border-left:3px solid var(--signal);border-radius:9px;padding:13px 15px}
+  .gate .gid{font-weight:600;color:var(--signal);font-size:12px;min-width:22px}
+  .gate .gt{font-size:12px;color:var(--ink)}
+  .gate .gt small{display:block;color:var(--ink-faint);font-size:10.5px;margin-top:3px;line-height:1.5}
+  .pass{display:inline-block;font-size:9.5px;letter-spacing:.12em;color:#04130d;background:var(--signal);border-radius:4px;padding:1px 7px;font-weight:600;margin-left:6px;vertical-align:middle}
+
+  .flow{display:flex;align-items:stretch;gap:0;margin:6px 0;flex-wrap:wrap}
+  .step{flex:1;min-width:150px;background:#06090b;border:1px solid var(--line);padding:13px 14px;position:relative}
+  .step:not(:last-child){border-right:none}
+  .step .si{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--signal-dim);margin-bottom:5px}
+  .step .sd{font-size:11.5px;color:var(--ink-dim);line-height:1.5}
+  .step .sd b{color:var(--ink)}
+  .step .arrow{position:absolute;right:-9px;top:50%;transform:translateY(-50%);z-index:2;color:var(--line-2);font-size:14px;background:var(--bg);padding:2px 0}
+
+  .callout{background:linear-gradient(180deg,rgba(61,139,255,.07),rgba(61,139,255,.02));border:1px solid #243650;border-radius:12px;padding:17px 19px;margin-top:14px}
+  .callout .h{font-family:var(--disp);font-size:15px;font-weight:600;color:#cfe0ff;margin-bottom:6px}
+  .callout p{font-size:12.5px;color:var(--ink-dim);margin:0}
+
+  .prov{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 2px}
+  .chip{font-size:10px;letter-spacing:.04em;padding:5px 11px;border-radius:20px;border:1px solid var(--line)}
+  .chip.real{color:var(--signal);border-color:var(--signal-dim);background:rgba(61,220,151,.05)}
+  .chip.synth{color:var(--warn);border-color:#5a4626;background:rgba(224,145,58,.05)}
+  .chip.model{color:var(--blue);border-color:#243650;background:rgba(61,139,255,.05)}
+
+  .ledger{font-size:12px;color:var(--ink-dim)}
+  .ledger .row{display:grid;grid-template-columns:120px 1fr;gap:14px;padding:7px 0;border-bottom:1px solid var(--line)}
+  .ledger .row:last-child{border-bottom:none}
+  .ledger .row .k{color:var(--signal-dim);font-weight:500}
+  .ledger .row .v b{color:var(--ink)}
+
+  .honest{border:1px dashed var(--line-2);border-radius:12px;padding:16px 19px;margin-top:14px;background:#0c0f12}
+  .honest .h{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--warn);margin-bottom:9px}
+  .honest ul{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-dim)}
+  .honest li{margin:5px 0} .honest li b{color:var(--ink)}
+
+  .foot{margin-top:42px;border-top:2px solid var(--line-2);padding-top:18px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .foot .one{font-family:var(--disp);font-size:18px;font-weight:600;color:#fff;max-width:62ch;line-height:1.4;letter-spacing:-.01em}
+  .foot .right{font-size:10.5px;color:var(--ink-faint);text-align:right;line-height:1.7}
+  em.k{color:var(--signal);font-style:normal}
+  @media print{body{background:#fff;color:#000}.wrap{padding:0}}
+  @media(max-width:760px){.grid2,.grid3,.tiles,.gates{grid-template-columns:1fr}.mast{flex-direction:column;align-items:flex-start}.mast .meta{text-align:left}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <div>
+      <h1>Hunchproof</h1>
+      <div class="tag">turn your hunch into proof · auditable market-residual intelligence</div>
+    </div>
+    <div class="meta">
+      status&nbsp;·&nbsp;<b>measurement harness validated</b><br/>
+      evidence&nbsp;·&nbsp;6 real EPL seasons · 2,110 matches<br/>
+      next&nbsp;·&nbsp;live shadow contest (World Cup 2026)
+    </div>
+  </div>
+
+  <div class="lede">
+    Hunchproof is an <b>auditable market-residual intelligence engine</b> — it measures whether a
+    crowd contributes verifiable information <b>beyond the market's current line, before the closing line absorbs it.</b>
+  </div>
+  <div class="sub">
+    Not a prediction game and not a leaderboard. Users commit a sealed probability distribution before kickoff;
+    it is scored against a strictly-proper rule and the market's <em class="k">closing line</em> — the sharpest public
+    forecast that exists. The product question is information, not luck: does the crowd anticipate where the line
+    is going before it gets there?
+  </div>
+
+  <!-- ===================== 1. THE BAR ===================== -->
+  <h2><span class="n">01</span> The bar — we measure against the closing line, not the scoreboard</h2>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <h3>RPS by source · 6 real EPL seasons</h3>
+      <div class="bars">
+        <div class="bar b-clim"><span class="lab">rolling climatology (base rates)</span><span class="track"><i class="fill"></i></span><span class="val">.2344</span></div>
+        <div class="bar b-open"><span class="lab">Pinnacle opening (no-vig)</span><span class="track"><i class="fill"></i></span><span class="val">.1966</span></div>
+        <div class="bar b-close"><span class="lab hl">Pinnacle CLOSING — the bar</span><span class="track"><i class="fill"></i></span><span class="val">.1951</span></div>
+        <div class="bar b-model"><span class="lab">public model (out-of-sample)</span><span class="track"><i class="fill"></i></span><span class="val">.2070</span></div>
+      </div>
+      <p class="barnote">Ranked Probability Score, lower = sharper. Model-scored sample, like-for-like. Bookmaker margin: opening 3.02%, closing 2.67% (Pinnacle — low-vig, hard to beat).</p>
+    </div>
+    <div class="card">
+      <h3>Why this framing survives scrutiny</h3>
+      <p style="margin-bottom:10px">A competent public model (rolling Poisson, walk-forward, no leakage) <b style="color:var(--ink)">beats naïve base rates but loses to the closing line</b> — realized alpha −0.0119 (z = −7.1). That negative result is the moat:</p>
+      <p>If a cheap public model could beat the line, any "oracle" built on top would just be rewarding that model. It can't — so contributing information beyond the line is a genuinely hard, genuinely valuable thing to detect. The closing line is a real wall.</p>
+    </div>
+  </div>
+
+  <!-- ===================== 2. GATES ===================== -->
+  <h2><span class="n">02</span> Four acceptance gates — all pass on real data</h2>
+  <div class="gates">
+    <div class="gate"><span class="gid">G1</span><span class="gt">Closing line is sharper than the opening line <span class="pass">PASS</span><small>+0.0015 RPS, z = +3.24. The market moves on information, not noise — this is the precondition that makes "beating the closing line" (CLV) a valid edge metric at all.</small></span></div>
+    <div class="gate"><span class="gid">G2</span><span class="gt">Market beats climatology <span class="pass">PASS</span><small>Every market line dominates rolling base rates. Confirms the pipeline has no leakage and the benchmark isn't set artificially low.</small></span></div>
+    <div class="gate"><span class="gid">G3</span><span class="gt">Public model loses to the closing line <span class="pass">PASS</span><small>0.2070 vs 0.1951. The negative control: we are not building a system a throwaway model can game.</small></span></div>
+    <div class="gate"><span class="gid">G4</span><span class="gt">CLV variance ≪ realized-alpha variance <span class="pass">PASS</span><small>SE 0.0009 vs 0.0017. CLV integrates out the match outcome, so it detects an edge in far fewer events — why CLV, not one-tournament results, is the primary metric.</small></span></div>
+  </div>
+
+  <!-- ===================== 3. METRIC + DEFENSE ===================== -->
+  <h2><span class="n">03</span> The metric and its anti-gaming defense</h2>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <h3>Closing Line Value, benchmarked at submit time</h3>
+      <p style="margin-bottom:9px;font-family:var(--mono);font-size:12px;color:var(--ink);background:#06090b;border:1px solid var(--line);border-radius:8px;padding:11px 12px">
+        excess&nbsp;CLV&nbsp;=&nbsp;CE(q<sub>close</sub>,&nbsp;q<sub>submit</sub>)&nbsp;−&nbsp;CE(q<sub>close</sub>,&nbsp;p<sub>user</sub>)
+      </p>
+      <p>Every user is scored against the market <b style="color:var(--ink)">at the instant they submitted</b> — not the opening line. A positive score means their distribution was closer to the eventual closing consensus than the live market was. This is the sharp-bettor's gold standard for proving edge, made auditable.</p>
+    </div>
+    <div class="card">
+      <h3>The latency-arbitrage attack, closed</h3>
+      <p style="margin-bottom:9px">The dangerous exploit isn't a bad prediction — it's a user who <b style="color:var(--ink)">waits for the line to move, then mirrors it</b> and claims credit for drift they didn't generate.</p>
+      <p>Benchmarking at submit time makes this a mathematical identity: a copycat's excess CLV is <b style="color:var(--signal)">exactly zero</b> (verified in simulation on real odds), while under a naïve vs-opening benchmark the same copycat looks like a star. Genuine anticipation keeps a positive score; copying the market earns nothing.</p>
+    </div>
+  </div>
+  <div class="callout">
+    <div class="h">Equal-weight aggregation dies; robust weighting is the oracle</div>
+    <p>On a noisy synthetic crowd, an equal-weight aggregate is dragged negative by noise and copycats (−0.0106). Gating and weighting contributors by their excess-CLV lower-confidence bound recovers a positive, well-calibrated aggregate (+0.0004, calibration error 0.005). The robust weighting <b style="color:#cfe0ff">is</b> the product — not an add-on.</p>
+  </div>
+
+  <!-- ===================== 4. SYSTEM ===================== -->
+  <h2><span class="n">04</span> The system — a production pipeline, end-to-end tested</h2>
+  <div class="flow">
+    <div class="step"><div class="si">Commit</div><div class="sd"><b>Sealed prediction.</b> Client hashes distribution + private salt (SHA-256). Server stores only the hash and authoritatively snapshots the market at receipt.<span class="arrow">→</span></div></div>
+    <div class="step"><div class="si">Lock</div><div class="sd"><b>Three-snapshot odds.</b> Pipeline captures q<sub>open</sub> / q<sub>lock</sub> / q<sub>close</sub>; submissions freeze at lock.<span class="arrow">→</span></div></div>
+    <div class="step"><div class="si">Reveal</div><div class="sd"><b>Verify.</b> User reveals the salt; server recomputes the hash byte-for-byte. A fulfilled commitment is immutable; tampered reveals are rejected.<span class="arrow">→</span></div></div>
+    <div class="step"><div class="si">Score</div><div class="sd"><b>Auto-settle.</b> On result, every revealed prediction is scored: RPS, CLV, realized alpha. Non-revealers take a worst-case score — selective non-reveal can't dodge a bad call.</div></div>
+  </div>
+  <div class="grid3" style="margin-top:14px">
+    <div class="card"><h3 style="font-size:14px">Cryptographic spine</h3><p>Commit-reveal with a canonical scheme proven identical across browser and server. Per-round Merkle anchoring; soulbound calibration reputation. Sybil resistance at the payout layer only.</p></div>
+    <div class="card"><h3 style="font-size:14px">Two separate scores</h3><p>An absolute-skill leaderboard for engagement; an alpha-/CLV-based oracle weight for B2B value. A market-copier can top the leaderboard yet carry zero oracle weight — by design.</p></div>
+    <div class="card"><h3 style="font-size:14px">Anti-cherry-picking</h3><p>Mandatory pre-committed slates plus coverage and reveal-reliability gates remove selection bias at the source, not as a statistical patch.</p></div>
+  </div>
+
+  <!-- ===================== 5. LOCK ANALYSIS ===================== -->
+  <h2><span class="n">05</span> A worked design decision — where to lock submissions</h2>
+  <div class="grid2" style="align-items:start">
+    <div class="card">
+      <h3>The lock_at tradeoff, measured on real odds</h3>
+      <p>Lock too late and the line has stopped moving — there's nothing left to anticipate (CLV headroom → 0). Lock too early and the benchmark is soft and opinions immature. The balance of residual headroom × benchmark hardness lands in a <b style="color:var(--ink)">band of roughly 0.16–0.45</b> of the open→close window.</p>
+    </div>
+    <div class="card">
+      <h3>The honest finding it surfaced</h3>
+      <p>The EPL open→close movement is <b style="color:var(--ink)">tiny (≈0.002 nats)</b> — the opening line is already nearly as sharp as the close, so lock timing barely matters in a mature league. It bites where lines move more: World-Cup group games — upset-prone, information-dense, softer openers. We recalibrate on live tournament odds.</p>
+    </div>
+  </div>
+
+  <!-- ===================== provenance + honesty ===================== -->
+  <h2><span class="n">06</span> What is proven, and what is not</h2>
+  <div class="prov">
+    <span class="chip real">● REAL — odds, results, all Phase-0 RPS / gates / margins (6 EPL seasons)</span>
+    <span class="chip model">● MODEL — out-of-sample public forecaster (stand-in; real crowd replaces it)</span>
+    <span class="chip synth">● SYNTHETIC — the crowd in Phase-1 harness tests (validates scoring &amp; defense, not edge)</span>
+  </div>
+  <div class="honest">
+    <div class="h">Stated plainly — so it can't be reversed on us</div>
+    <ul>
+      <li><b>Proven on real data:</b> the closing line is a hard, well-calibrated bar; the line moves on information (G1); a competent public model can't beat it; CLV is the statistically correct primary metric; the latency-arbitrage defense holds as an identity; the full commit→lock→reveal→score pipeline runs end-to-end.</li>
+      <li><b>Not yet claimed:</b> that a real crowd has edge. The informed users in our harness were handed information by construction — that validates the <b>ruler and the defense</b>, not real-world alpha.</li>
+      <li><b>The one open question</b>, answerable only with real users: does a committed crowd produce <b>positive pre-lock CLV</b> from an auditable, non-cherry-picked slate? That is exactly what the live shadow contest tests.</li>
+    </ul>
+  </div>
+
+  <!-- ===================== footer / one-liner ===================== -->
+  <div class="foot">
+    <div class="one">
+      "We built the measurement harness, validated it on six real Premier League seasons, and proved the anti-gaming defense. The next step is real people — not another model."
+    </div>
+    <div class="right">
+      Hunchproof · hunchproof.com<br/>
+      Phase 0–1 · technical brief<br/>
+      artifacts: phase0 · phase1 · ingestion · schema · terminal
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

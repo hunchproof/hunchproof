@@ -1,162 +1,131 @@
-# Hunchproof — Project Brief for Claude Code
+# Hunchproof — project briefing for Claude Code
 
-> **hunchproof.com** · turn your hunch into proof.
-> An **auditable market-residual intelligence engine** for football prediction.
-> A *belief market, not a money market.* NOT a sportsbook, NOT a prediction/betting market.
-
-You (Claude Code) are picking up a project that already has a validated research
-foundation and a tested, end-to-end runtime. This file is your map. Read it fully
-before writing code. Then read `docs/ARCHITECTURE.md` and `docs/MECHANISM.md`.
+> **hunchproof.com** · "Turn your hunch into proof."
+> An **auditable football belief market**. Live on Vercel.
+> Deep detail lives in `docs/` (MECHANISM, ARCHITECTURE, STATUS, ROADMAP, GLOSSARY) — read those
+> before changing mechanism/scoring. This file is the fast map; it must stay tight.
 
 ---
 
-## What this product is, in one paragraph
+## What it is (and the honest framing — never drift from this)
 
-Users commit a **sealed probability distribution** over a football match outcome
-(Home / Draw / Away) **before kickoff** (cryptographic commit-reveal). After the match,
-each prediction is scored by a **strictly-proper rule (RPS)** against the market's
-**closing line** — the sharpest public forecast that exists. The metric that matters is
-**CLV (Closing Line Value) benchmarked at the user's submit time**: were you closer to the
-eventual closing consensus than the market was *when you called it*? Predictions that beat
-the market *before it moved* accrue to an unfakeable track record, and the best forecasters
-aggregate (robust-weighted) into a **crowd oracle**. Two scores forever: absolute
-calibration (engagement leaderboard) and market-relative edge (oracle weight / B2B value).
+Users commit a **sealed H/D/A probability** (Home/Draw/Away) over a match **before kickoff**
+(cryptographic commit-reveal). After the match each prediction is scored by **RPS against the
+market's CLOSING line** (the sharpest public forecast). The core metric is **CLV = excess closeness
+to the closing line vs the market at the user's SUBMIT time**. Best forecasters aggregate
+(robust-weighted) into a **crowd oracle**.
 
----
-
-## NON-NEGOTIABLE design constraints (do not violate these when building)
-
-These were derived over a long design process and validated on real data. Breaking any of
-them silently breaks the product's integrity. If a task seems to require breaking one, STOP
-and flag it.
-
-1. **The benchmark is the closing line, NOT the match result.** A user's edge is measured
-   as how much closer their distribution is to `q_close` than the market was. Tilting toward
-   the realized outcome is *realized alpha* (high variance, long-horizon only), NOT the
-   primary metric. See `docs/MECHANISM.md` §"CLV vs realized alpha".
-
-2. **Individual reward = excess CLV vs the SUBMIT-TIME market**, not vs the opening line:
-   `excess_CLV = CE(q_close, q_submit) − CE(q_close, p_user)`.
-   This is the **latency-arbitrage defense**: a user who waits for the line to move and
-   mirrors it earns *exactly zero* (proven as an identity). Benchmarking vs opening would
-   reward copying drift. NEVER benchmark individual reward against the opening line.
-
-3. **The server snapshots `q_submit` authoritatively at commit time.** Never trust a
-   client-supplied market price. This is the engineering anchor of the latency-arb defense.
-
-4. **Commitment binds; reveal verifies.** Store only the commitment hash at commit time
-   (the distribution is invisible to the server pre-reveal). Reveal recomputes SHA-256 with
-   the canonical scheme and accepts only a byte-for-byte match. **A fulfilled commitment is
-   immutable** — a failed/tampered reveal must NEVER mutate a stored prediction.
-
-5. **No selective non-reveal.** Committed-but-unrevealed predictions are scored
-   **worst-case** on the leaderboard; oracle eligibility is gated on reveal reliability ≥ 95%.
-   Mandatory pre-committed **slates** (predict every match, commit all at once) remove
-   cherry-picking at the source.
-
-6. **The oracle is robust-weighted, NEVER equal-weighted.** Contributors are gated and
-   weighted by their excess-CLV lower-confidence bound (`mean − 1.64·SE`, clipped ≥ 0).
-   Equal-weight aggregation provably dies on a noisy crowd; robust weighting IS the product.
-
-7. **Two separate scores, always.** Absolute calibration (leaderboard) and market-relative
-   CLV/alpha (oracle weight) are never merged. A market-copier can top the absolute board
-   yet carry ~zero oracle weight — this is by design, not a bug.
-
-8. **Canonical commitment scheme (must match across browser + backend, byte-for-byte):**
-   - quantize the distribution to integer permille (largest-remainder, sums to 1000)
-   - preimage string: `PoF|v1|{match_id}|{H}-{D}-{A}|{salt_hex}` (salt = 32 random bytes hex)
-   - commitment = SHA-256(utf8(preimage)), hex
-   This is verified identical in Python and JS in `product/commitment_reference.py`.
-   **Do not change the scheme** without re-proving cross-language equality and versioning it
-   (the `v1` tag exists for this).
-
-9. **It is not betting.** Keep this boundary in every user-facing string and external doc.
-   No staking on outcomes; users prove the *quality* of probabilistic foresight. This protects
-   positioning AND reduces regulatory surface.
+- It is a **belief market, NOT betting** — no money, no staking, no payouts. This boundary must
+  appear in user-visible copy (the landing eyebrow + footer carry it verbatim).
+- The Phase-1 crowd is **SYNTHETIC by construction** (demo data is informed archetypes handed
+  information). So the product validates the **mechanism, the ruler, and the audit trail — NOT real
+  alpha. NEVER claim the crowd has edge / beats the market / wins money.** (See `docs/STATUS.md`.)
 
 ---
 
-## Repository layout
+## Inviolable invariants (do not break — if a task seems to require it, STOP and flag)
 
-```
-hunchproof/
-├── CLAUDE.md                 ← you are here
-├── docs/
-│   ├── ARCHITECTURE.md       system design, data flow, the three-snapshot pipeline
-│   ├── MECHANISM.md          the scoring math + every settled design decision & why
-│   ├── STATUS.md             what's proven vs not, what's built vs not (honest boundary)
-│   ├── ROADMAP.md            concrete next tasks for you, in priority order
-│   └── GLOSSARY.md           RPS, CLV, q_open/lock/close, no-vig, slate, etc.
-├── research/                 the measurement layer (validated on real data)
-│   ├── phase0.py             closing-line bar + 4 acceptance gates  [REAL data]
-│   ├── phase1.py             shadow-contest scoring harness + CLV defense
-│   ├── lock_scan.py          where to set lock_at (headroom × hardness)
-│   ├── engine.py             mechanism primitives library
-│   ├── simulate.py / simulate_alpha.py   mechanism-validation sims (regression suite)
-├── product/                  the runtime (end-to-end tested)
-│   ├── pof_backend.py        FastAPI + SQLite: fixtures/commit/reveal/leaderboard
-│   ├── ingestion.py          fixtures + 3-snapshot odds pipeline + auto-scoring
-│   ├── live_odds_source.py   The-Odds-API adapter (drop in a key)
-│   ├── commitment_reference.py   canonical commit scheme (Py, proven == JS)
-│   ├── predict_terminal.html single-match commit terminal (early MVP)
-│   ├── hunchproof_app.html   FULL 4-view product frontend (the real UI)
-│   ├── mvp_schema.sql        production Postgres schema (SQLite mirrors it)
-│   └── run_local.sh          one command: backend + frontend, wired
-├── tests/
-│   ├── pof_e2e_test.py       full lifecycle + reveal-immutability regression
-│   └── integration_test.py   pipeline + backend share one DB; auto-scoring works
-├── reports/                  generated evidence (markdown + PNG figures + per-match CSV)
-├── brand/                    naming, positioning, one-liner (中英)
-└── external/                 investor one-pager (HTML)
-```
+1. **Baseline = the closing line, NOT the result.** Tilting toward the realized outcome is
+   "realized alpha" (high-variance, secondary/display-only), never the primary metric.
+2. **Individual reward = excess CLV vs the SUBMIT-TIME market** (`CE(q_close,q_submit) − CE(q_close,p)`),
+   never vs the opening line. (Latency-arb defense: mirroring the moved line earns exactly 0.)
+3. **Server snapshots `q_submit` authoritatively at commit time.** Never trust a client market price.
+4. **Commit binds; reveal verifies.** Store ONLY the commitment hash at commit (distribution invisible
+   pre-reveal). Reveal recomputes SHA-256 byte-for-byte; a fulfilled commitment is **immutable** —
+   a failed/tampered reveal must never mutate a stored row.
+5. **No selective non-reveal:** unrevealed = worst-cased on the board; oracle eligibility gated on
+   reveal reliability ≥ 95%; slates are committed in full (anti-cherry-pick).
+6. **Oracle is robust LCB-weighted (`mean − 1.64·SE`, clip ≥ 0), NEVER equal-weighted.**
+7. **Two scores are NEVER merged:** absolute calibration (mean RPS, engagement board) vs
+   market-relative edge (CLV/oracle weight). A market-copier can top the absolute board and carry ~0
+   weight on the oracle board — by design.
+8. **Canonical commitment scheme `PoF|v1` (must be byte-identical browser↔backend):**
+   quantize to integer permille (largest-remainder, sums to 1000) → preimage
+   `PoF|v1|{match_id}|{H}-{D}-{A}|{salt_hex}` (salt = 32 random bytes hex) → `SHA-256(utf8)` hex.
+   Don't change it without re-proving Py==JS and bumping the `v1` tag. Refs: `product/commitment_reference.py`,
+   `web/src/lib/commitment.ts`; gold-vector hash `c9e215…8142b309`.
+9. **Client scoring is DISPLAY-ONLY; the server/ingestion is authoritative** for RPS/CLV/alpha.
 
 ---
 
-## Current status (see docs/STATUS.md for the honest, detailed version)
+## Architecture & key paths
 
-**Proven on REAL data** (6 EPL seasons, 2,110 matches, Pinnacle open+close):
-closing line is a hard, well-calibrated bar (RPS ≈ 0.195); the line moves on information
-(close beats open, z = 3.24); a competent out-of-sample public model loses to the line;
-CLV has ~half the variance of realized alpha → correct primary metric; commit→lock→reveal→
-score pipeline runs end-to-end; latency-arb defense holds as an identity; browser→backend
-live loop tested (slate loads from server, commits land, q_submit server-snapshotted).
-
-**NOT yet claimed / NOT yet done:** that a real crowd has edge (the Phase-1 crowd is
-synthetic by construction — it validates the *ruler*, not real alpha). The one open
-question, answerable only with real users: **does a committed crowd produce positive
-pre-lock CLV?** That is what the live shadow contest tests.
-
-**Remaining work is operational + the build tasks in ROADMAP.md.** The two things only the
-real world can supply: a paid odds-API key, and real users.
+- **`web/`** — production frontend: **React + TypeScript + Vite + Tailwind** (the real UI; the old
+  `product/hunchproof_app.html` is a legacy single-file reference).
+  - Routing (`web/src/router.tsx`): animated **landing at `/`** (`views/LandingView.tsx`, own lazy
+    chunk); the four product views — **Slate · Portfolio · Leaderboards · Oracle** — live under a
+    **pathless `<App/>` layout** at `/slate /portfolio /leaderboards /oracle`; `*` → `/slate`.
+  - **Demo vs live mode** (`web/src/config.ts`, resolved once at load): **demo** = synthetic, runs
+    fully in-browser, no backend (default); **live** via `?api=<url>` or `VITE_API_BASE`. The landing
+    CTA carries `location.search` so a `?api=` entry stays live. The connection badge flips demo/live.
+  - View-models in `src/models.ts`; demo producers in `src/demo/`; live API→VM derive in
+    `src/api/derive.ts`; typed client `src/api/client.ts` + React Query hooks `src/api/queries.ts`;
+    salts persisted client-side in `src/hooks/useCommitVault.ts`.
+- **`product/pof_backend.py`** — FastAPI + SQLite. Endpoints: `/api/fixtures/open`,
+  `/api/predictions` (commit + list; JOINs `matches` to surface `clv`/`alpha_close`/teams/result),
+  `/api/predictions/reveal`, `/api/leaderboard`. `product/ingestion.py` = 3-snapshot odds pipeline
+  (q_open/q_lock/q_close) + auto-scoring on settle. `live_odds_source.py` = The-Odds-API adapter
+  (reads `ODDS_API_KEY` from env; no key is hardcoded).
+- **`research/`** — phase0/phase1/lock_scan (mechanism validated on 6 EPL seasons; see STATUS).
+- **`tests/`** — `pof_e2e_test.py` (lifecycle + reveal-immutability), `integration_test.py`
+  (needs football-data CSVs in `research/real_data/`, which are NOT in the repo → can't run here).
+- **Python:** the machine default `python3` is 3.9.6 (too old). Use **`python3.12`** / the
+  `hunchproof/.venv` (fastapi, uvicorn, httpx, numpy, pandas, scipy, pillow). `product/run_local.sh`
+  brings up backend + Vite dev, wired.
 
 ---
 
-## How to run what already exists
+## Conventions
+
+- **Typography system (after this pass, mono = a datum, sans = a label):**
+  - **Serif** = Fraunces (`font-disp`) for headlines / wordmark / card titles.
+  - **Mono** = IBM Plex Mono for body/caption prose AND all **data values + hashes** (numbers, RPS,
+    CLV, %, H/D/A, the PoF·v1 hash) — keep these mono.
+  - **`.hp-label`** = Inter sans, uppercase, tight tracking (token in `web/src/index.css`) for
+    overlines / pills / badges / table headers / section labels / status tags / gate IDs.
+  - Brand: dark bg `#0a0c0e` (`--bg`), signal green `#3ddc97` (`--signal`); `.glass-panel` material
+    + `rounded-panel/tile/inner` radii; tokens in `web/src/index.css` + `web/tailwind.config.ts`.
+- **Git author is repo-local: `Hunchproof <frank@hunchproof.com>`** (keeps the maintainer's personal
+  email out of public history). End commit messages with the Co-Authored-By trailer.
+- **Scope discipline:** never touch logic / routing / scoring / the invariants unless that IS the
+  task. For visual/mobile work keep the **desktop byte-for-byte unchanged** (responsive via `sm:`/
+  `md:` only). Frozen user-visible strings stay verbatim (esp. the "not a betting market" lines, the
+  Oracle P4 PENDING gate, and the "synthetic crowd … not that a real crowd has edge" note).
+- Public contact (already public): email `frank@hunchproof.com`, X `@hunch_proof`.
+
+---
+
+## Deployment state
+
+- **Live at hunchproof.com** on **Vercel** (Root Directory = `web`, Vite preset; **auto-redeploys on
+  push to `main`**). DNS at **Porkbun**. GitHub: `github.com/hunchproof/hunchproof` (public).
+- Recently shipped (latest first; `git log --oneline`):
+  - `3f2d6ec` — Open Graph + Twitter Card meta + 1200×630 `web/public/og.png` share card.
+  - `ec906f5` — full favicon set + `web/public/site.webmanifest`.
+  - `23b2fbe` — responsive mobile top-nav (hamburger + dropdown sheet; desktop unchanged).
+  - `53d01aa` — SPA history-fallback rewrite (`web/vercel.json`, required because Root Dir = `web`).
+  - `5d647ad` — initial commit (research + backend + full web app).
+
+---
+
+## Verification gates (keep ALL green on any change)
 
 ```bash
-# reproduce the research evidence (needs football-data.co.uk CSVs in research/real_data/)
-cd research && python phase0.py --datadir real_data --outdir ../reports
-              python phase1.py --datadir real_data --outdir ../reports
-              python lock_scan.py --datadir real_data --outdir ../reports
-
-# run the product locally (backend + frontend wired), no API key needed
-cd product && ./run_local.sh                 # then open the printed URL
-# or seed real fixtures from history:  ./run_local.sh --replay ../research/real_data
-
-# tests
-cd tests && python pof_e2e_test.py && python integration_test.py
+cd web && npm run test        # Vitest 14/14 — incl. Python==JS commitment hash parity + scoring
+cd web && npx tsc --noEmit    # types clean
+cd web && npm run build       # clean; static dist/
+# backend (from repo root, using the 3.12 venv):
+POF_DB=/tmp/x.db .venv/bin/python tests/pof_e2e_test.py   # → "ALL CHECKS PASSED ✓"
 ```
-
-Stack: Python 3.11+, FastAPI + uvicorn, SQLite (dev) → Postgres (prod via mvp_schema.sql),
-numpy/pandas/scipy/matplotlib for research. Frontend is single-file HTML/JS (no build step),
-talks to the backend via `?api=<backend-url>` or `window.POF_API_BASE`.
 
 ---
 
-## Your first move, Claude Code
+## Pending / next (see `docs/ROADMAP.md` + `docs/STATUS.md`)
 
-1. Read `docs/MECHANISM.md` and `docs/ARCHITECTURE.md` so you don't violate the 9 constraints.
-2. Read `docs/ROADMAP.md` — it lists the concrete next build tasks in priority order.
-3. Skim `docs/STATUS.md` so you never over-claim in code comments, UI copy, or docs.
-4. The existing code is tested and working — extend it, don't rewrite it. When you change the
-   commitment scheme, schema, or scoring, re-run the tests in `tests/` and keep them green.
+- **The open question (P2):** does a committed crowd of REAL users produce positive pre-lock CLV?
+  Only real users answer it — everything built so far exists to measure it cleanly. Don't fake it.
+- Real auth (currently a local `user_id`); Postgres migration (`product/mvp_schema.sql`); live odds
+  daemon (needs a paid `ODDS_API_KEY`) + recalibrating `lock_at` on live tournament odds.
+- Live-mode oracle aggregation + gates P2–P4 are still **client-side display-only** (the backend
+  doesn't expose authoritative crowd aggregation yet); the Oracle view is honest about this.
+- On-chain / token pieces are explicitly **deferred** — not needed to answer the open question.
